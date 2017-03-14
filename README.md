@@ -4,6 +4,6 @@
 
 2) Compile o projeto: make
 
-3) execute o programa: ./detectPeople <CAMINHO-PARA-UM-VIDEO>
+3) execute o programa: ./detectPeople "CAMINHO-PARA-UM-VIDEO"
 
 
