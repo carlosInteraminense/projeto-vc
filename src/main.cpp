@@ -285,7 +285,7 @@ int main(int argc, char **argv)
 		gradX = gradients.first;
 		gradY = gradients.second;
 		gradX.convertTo(gradX, CV_8UC1);
-		gradX.convertTo(gradY, CV_8UC1);
+		gradY.convertTo(gradY, CV_8UC1);
 		cv::imshow("original-frame", curretFrame);
 		cv::imshow("person-detected", rectDrawed);
 		cv::imshow("preprocessed-frame", segmentedFrame);
