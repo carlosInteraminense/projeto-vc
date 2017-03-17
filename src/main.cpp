@@ -45,7 +45,7 @@ cv::Rect processForeground(cv::Mat foreground)
 
 
 	cv::erode(foreground, foreground,kernel,cv::Point(-1,-1),1);
-	cv::dilate(foreground, foreground,kernel,cv::Point(-1,-1),10);
+	cv::dilate(foreground, foreground,kernel,cv::Point(-1,-1),1);
 
 	cv::findContours( foreground, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, cv::Point(0, 0) );
 	std::vector<std::vector<cv::Point> > contours_poly( contours.size() );
@@ -293,10 +293,11 @@ int main(int argc, char **argv)
 			cv::imshow("flow", flowDrawed);
 		cv::imshow("Sobel-x", gradX);
 		cv::imshow("Sobel-y", gradY);
+		cv::imshow("foreground", foreground);
 
 		if(cv::waitKey(20) >= 0) break;
 
-		unsigned int microseconds = 1000000;
+		unsigned int microseconds = 500000;
 		usleep(microseconds);
 
 		segmentedFrame.copyTo(prevFrame);
