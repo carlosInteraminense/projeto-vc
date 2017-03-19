@@ -204,14 +204,67 @@ std::vector<std::string> split( std::string str, char sep = ' ' )
 	return ret ;
 }
 
+cv::Mat cropMat(cv::Mat m, cv::Rect r)
+{
+	cv::Mat aux = m(r);
+	return aux;
+}
+
+cv::Mat addBorderInMat(cv::Mat src)
+{
+	cv::Mat m = cv::Mat::zeros(cv::Size(160, 120), src.type());
+	if(CV_32FC1 == src.type())
+	{
+		for(int i = 0, ii =0 ; i < m.rows; ++i, ++ii)
+		{
+			for(int j = 48, jj = 0; j < 112; ++j, ++jj)
+			{
+				m.at<float>(i,j) = src.at<float>(ii,jj);
+			}
+		}
+	
+	}else if(3 == src.type())
+	{
+		for(int i = 0, ii =0 ; i < m.rows; ++i, ++ii)
+		{
+			for(int j = 48, jj = 0; j < 112; ++j, ++jj)
+			{
+				m.at<short>(i,j) = src.at<short>(ii,jj);
+			}
+		}
+	}
+	else
+	{
+		for(int i = 0, ii =0 ; i < m.rows; ++i, ++ii)
+		{
+			for(int j = 48, jj = 0; j < 112; ++j, ++jj)
+			{
+				m.at<uchar>(i,j) = src.at<uchar>(ii,jj);
+			}
+		}
+	
+	}
+	
+	return m;
+}
+
 void saveFeatures(std::string videoPath, std::string pathDirOut, std::string dirVideo, std::string index,
-		std::pair<cv::Mat, cv::Mat> flowXY, std::pair<cv::Mat, cv::Mat> gradients, cv::Mat grayscaleFrame)
+		std::pair<cv::Mat, cv::Mat> flowXY, std::pair<cv::Mat, cv::Mat> gradients, cv::Mat grayscaleFrame, cv::Rect boundingbox)
 {
 		std::vector<std::string> tokens = split(videoPath, '/');
 
 		std::string videoName = tokens[tokens.size()-1];
 		std::string label = tokens[tokens.size()-2];
-
+		grayscaleFrame = cropMat(grayscaleFrame, boundingbox);
+		gradients.first = cropMat(gradients.first, boundingbox);
+		gradients.second = cropMat(gradients.second, boundingbox);
+		grayscaleFrame=addBorderInMat(grayscaleFrame);
+		gradients.first=addBorderInMat(gradients.first);
+		gradients.second=addBorderInMat(gradients.second);
+//		std::cout<<"largura: "<<grayscaleFrame.cols<<", altura: "<<grayscaleFrame.rows<<std::endl;  
+		cv::resize(grayscaleFrame, grayscaleFrame, cv::Size(60, 40));
+		cv::resize(gradients.first, gradients.first, cv::Size(60, 40));
+		cv::resize(gradients.second, gradients.second, cv::Size(60, 40));
 		cv::imwrite(pathDirOut + "/grayscale/" + label + "/"+ dirVideo + "/" + index + ".png", grayscaleFrame);
 		cv::imwrite(pathDirOut + "/grad_x/" + label + "/"+ dirVideo + "/" + index + ".png", gradients.first);
 		cv::imwrite(pathDirOut + "/grad_y/" + label + "/"+ dirVideo + "/" + index + ".png", gradients.second);
@@ -220,6 +273,16 @@ void saveFeatures(std::string videoPath, std::string pathDirOut, std::string dir
 		{
 			std::string fileNameFlowX = pathDirOut + "/flow_x/" + label + "/"+ dirVideo + "/" + index + ".yaml";
 			std::string fileNameFlowY = pathDirOut + "/flow_y/" + label + "/"+ dirVideo + "/" + index + ".yaml";
+
+			flowXY.first = cropMat(flowXY.first, boundingbox);
+			flowXY.second = cropMat(flowXY.second, boundingbox);
+			
+			flowXY.first= addBorderInMat(flowXY.first);
+			flowXY.second= addBorderInMat(flowXY.second);
+
+
+			cv::resize(flowXY.first, flowXY.first, cv::Size(60, 40));
+			cv::resize(flowXY.second, flowXY.second, cv::Size(60, 40));
 
 			cv::FileStorage storageX(fileNameFlowX, cv::FileStorage::WRITE);
 			storageX << "flow_x" << flowXY.first;
@@ -230,6 +293,14 @@ void saveFeatures(std::string videoPath, std::string pathDirOut, std::string dir
 			storageY.release();
 		}
 }
+
+std::string intToString (int a)
+{
+	std::ostringstream temp;
+	temp<<a;
+	return temp.str();
+}
+
 
 std::string intToString (int a)
 {
@@ -252,6 +323,7 @@ int main(int argc, char **argv)
 	for(;;)
 	{
 		cap >> curretFrame;
+//		std::cout<<"VIDEO -----> largura: "<< curretFrame.cols<<" e altura: "<<curretFrame.rows<<std::endl;
 		if(curretFrame.empty()) break;
 
 		cv::cvtColor( curretFrame, curretFrame, CV_BGR2GRAY );
@@ -261,23 +333,29 @@ int main(int argc, char **argv)
 
 		pMOG2->apply(frameResized, foreground);
 
-		std::pair<cv::Mat, cv::Rect>  segmentedFrameAndRect = preProcessFrame(frameResized, foreground);
-		cv::Mat segmentedFrame = segmentedFrameAndRect.first;
-		if(segmentedFrame.empty()) continue;
 
-		std::pair<cv::Mat, cv::Mat> gradients = computeGradients(segmentedFrame);
+		std::pair<cv::Mat, cv::Mat> gradients = computeGradients(frameResized);
 		std::pair<cv::Mat, cv::Mat> flowXY;
 		cv::Mat flow, flowDrawed;
 		if(!prevFrame.empty())
 		{
-			flow = computeOpticalFlow(prevFrame, segmentedFrame);
+			flow = computeOpticalFlow(prevFrame, frameResized);
 			flowXY = separeteFlowXY(flow);
-			flowDrawed = drawFlow(segmentedFrame, flow);
+			flowDrawed = drawFlow(frameResized, flow);
 		}
 
-//		saveFeatures(argv[1], argv[2], argv[3], intToString(count) , flowXY, gradients, segmentedFrame);
-		count +=1;
 
+		
+		std::pair<cv::Mat, cv::Rect>  segmentedFrameAndRect = preProcessFrame(frameResized, foreground);
+		cv::Mat segmentedFrame = segmentedFrameAndRect.first;
+
+		frameResized.copyTo(prevFrame);
+		if(segmentedFrame.empty()) continue;
+		
+		
+
+//		saveFeatures(argv[1], argv[2], argv[3], intToString(count) , flowXY, gradients, frameResized, segmentedFrameAndRect.second);
+		count +=1;
 
 		cv::Mat rectDrawed = drawRect(curretFrame, segmentedFrameAndRect.second);
 
@@ -285,7 +363,7 @@ int main(int argc, char **argv)
 		gradX = gradients.first;
 		gradY = gradients.second;
 		gradX.convertTo(gradX, CV_8UC1);
-		gradY.convertTo(gradY, CV_8UC1);
+		gradX.convertTo(gradY, CV_8UC1);
 		cv::imshow("original-frame", curretFrame);
 		cv::imshow("person-detected", rectDrawed);
 		cv::imshow("preprocessed-frame", segmentedFrame);
@@ -293,62 +371,12 @@ int main(int argc, char **argv)
 			cv::imshow("flow", flowDrawed);
 		cv::imshow("Sobel-x", gradX);
 		cv::imshow("Sobel-y", gradY);
-		cv::imshow("foreground", foreground);
 
 		if(cv::waitKey(20) >= 0) break;
 
-		unsigned int microseconds = 500000;
+		unsigned int microseconds = 1000000;
 		usleep(microseconds);
-
-		segmentedFrame.copyTo(prevFrame);
 	}
 
 	return 0;
 }
-
-
-
-/**
- * void processVideo(cv::VideoCapture cap)
-{
-
-	cv::Mat frame, foreground;
-	cv::Ptr<cv::BackgroundSubtractorMOG2> pMOG2 = cv::createBackgroundSubtractorMOG2(5, 8, false);
-	cv::Mat kernel = cv::Mat::ones(cv::Size(2,2), CV_32F);
-	std::vector<std::vector<cv::Point> > contours;
-	std::vector<cv::Vec4i> hierarchy;
-	for(;;)
-	{
-		cap >> frame;
-		if(frame.empty()) break;
-
-		pMOG2->apply(frame, foreground);
-
-		cv::erode(foreground, foreground,kernel,cv::Point(-1,-1),1);
-		cv::dilate(foreground, foreground,kernel,cv::Point(-1,-1),10);
-
-		cv::findContours( foreground, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, cv::Point(0, 0) );
-		std::vector<std::vector<cv::Point> > contours_poly( contours.size() );
-		std::vector<cv::Rect> boundRect( contours.size() );
-
-		for(int i = 0; i < contours.size(); ++i)
-		{
-			cv::approxPolyDP( cv::Mat(contours[i]), contours_poly[i], 3, true );
-			boundRect[i] = cv::boundingRect( cv::Mat(contours_poly[i]) );
-		}
-
-		if(boundRect.size() > 0)
-		{
-			cv::Rect boundingBox = rectMax(boundRect);
-			if(boundingBox.width > 30 && boundingBox.height > 50)
-			{
-				rectangle(frame, boundingBox.tl(), boundingBox.br(), cv::Scalar(0,255,0), 2, 8, 0);
-			}
-		}
-		cv::imshow("Frame", frame);
-		cv::imshow("foreground-erode", foreground);
-		if(cv::waitKey(20) >= 0) break;
-	}
-}
- */
-
