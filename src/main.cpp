@@ -45,7 +45,7 @@ cv::Rect processForeground(cv::Mat foreground)
 
 
 	cv::erode(foreground, foreground,kernel,cv::Point(-1,-1),1);
-	cv::dilate(foreground, foreground,kernel,cv::Point(-1,-1),1);
+	cv::dilate(foreground, foreground,kernel,cv::Point(-1,-1),10);
 
 	cv::findContours( foreground, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, cv::Point(0, 0) );
 	std::vector<std::vector<cv::Point> > contours_poly( contours.size() );
@@ -335,8 +335,6 @@ int main(int argc, char **argv)
 			flowXY = separeteFlowXY(flow);
 			flowDrawed = drawFlow(frameResized, flow);
 		}
-
-
 		
 		std::pair<cv::Mat, cv::Rect>  segmentedFrameAndRect = preProcessFrame(frameResized, foreground);
 		cv::Mat segmentedFrame = segmentedFrameAndRect.first;
@@ -344,8 +342,6 @@ int main(int argc, char **argv)
 		frameResized.copyTo(prevFrame);
 		if(segmentedFrame.empty()) continue;
 		
-		
-
 //		saveFeatures(argv[1], argv[2], argv[3], intToString(count) , flowXY, gradients, frameResized, segmentedFrameAndRect.second);
 		count +=1;
 
@@ -369,6 +365,8 @@ int main(int argc, char **argv)
 		unsigned int microseconds = 1000000;
 		usleep(microseconds);
 	}
+
+	std::cout << "Count: "<< count << std::endl;
 
 	return 0;
 }
