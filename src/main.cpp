@@ -79,8 +79,19 @@ std::pair<cv::Mat, cv::Rect> preProcessFrame(cv::Mat frame, cv::Mat foreground)
 	std::vector<cv::Rect> human;
 	hog.detectMultiScale(frame, human, 0, cv::Size(8,8), cv::Size(32,32), 1.05, 0);
 	cv::Rect boundingBox;
-
-	std::cout << bbox.width << "," << bbox.height << " " << bbox.x << "," << bbox.y <<std::endl;
+	
+	if (bbox.y < 0) {
+		bbox.y = 0;
+	}
+	
+	if (bbox.x <= 0) {
+		bbox.x = 1;
+	}
+	
+	if (bbox.x >= 128) {
+		bbox.x = 127;
+	}
+	
 	if (human.size() > 0) {
 		boundingBox = rectMax(human);
 		
@@ -89,13 +100,13 @@ std::pair<cv::Mat, cv::Rect> preProcessFrame(cv::Mat frame, cv::Mat foreground)
 		bbox.width = boundingBox.width;
 		bbox.height = boundingBox.height;
 		
-		std::cout << "Detecting... " << bbox.width << "," << bbox.height <<std::endl;
+		std::cout << "Detecting... " << bbox.width << "," << bbox.height << " " << bbox.x << "," << bbox.y <<std::endl;
 		tracker->cv::Tracker::init(frame, bbox);
 	}
-	else if (bbox.width > 0 && bbox.height > 0 && bbox.x > 0 && bbox.x < 128 && bbox.y >= 0){
+	else if (bbox.width > 0 && bbox.height > 0){
 		//boundingBox = processForeground(foreground);
 		
-		std::cout << "Tracking..." <<std::endl;
+		std::cout << "Tracking..." << bbox.width << "," << bbox.height << " " << bbox.x << "," << bbox.y <<std::endl;
 		tracker->cv::Tracker::update(frame, bbox);
 		boundingBox = bbox;
 		
