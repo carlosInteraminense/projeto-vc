@@ -6,12 +6,16 @@
 #include "opencv2/imgcodecs.hpp"
 #include "opencv2/videoio.hpp"
 #include <opencv2/video.hpp>
+#include <opencv2/tracking.hpp>
 
 #include <string>
 #include <unistd.h>
 #include <iostream>
 #include <vector>
 #include <sstream>
+
+cv::Ptr<cv::Tracker> tracker = cv::Tracker::create( "MEDIANFLOW" );
+cv::Rect2d bbox;
 
 cv::Rect rectMax(std::vector<cv::Rect> rects)
 {
@@ -76,18 +80,34 @@ std::pair<cv::Mat, cv::Rect> preProcessFrame(cv::Mat frame, cv::Mat foreground)
 	hog.detectMultiScale(frame, human, 0, cv::Size(8,8), cv::Size(32,32), 1.05, 0);
 	cv::Rect boundingBox;
 
+	std::cout << bbox.width << "," << bbox.height << " " << bbox.x << "," << bbox.y <<std::endl;
 	if (human.size() > 0) {
 		boundingBox = rectMax(human);
+		
+		bbox.x = boundingBox.x;
+		bbox.y = boundingBox.y;
+		bbox.width = boundingBox.width;
+		bbox.height = boundingBox.height;
+		
+		std::cout << "Detecting... " << bbox.width << "," << bbox.height <<std::endl;
+		tracker->cv::Tracker::init(frame, bbox);
 	}
-	else
-	{
-		boundingBox = processForeground(foreground);
+	else if (bbox.width > 0 && bbox.height > 0 && bbox.x > 0 && bbox.x < 128 && bbox.y >= 0){
+		//boundingBox = processForeground(foreground);
+		
+		std::cout << "Tracking..." <<std::endl;
+		tracker->cv::Tracker::update(frame, bbox);
+		boundingBox = bbox;
+		
+	} else {
+		std::cout << "Couldn't detect and track" <<std::endl;
 	}
 
 	if(boundingBox.area() != 0)
 	{
 		if((boundingBox.x + 64) < frame.cols)
 		{
+
 			boundingBox.width = 64;
 			boundingBox.y = 0;
 			boundingBox.height = 120;
@@ -100,10 +120,12 @@ std::pair<cv::Mat, cv::Rect> preProcessFrame(cv::Mat frame, cv::Mat foreground)
 			boundingBox.height = 120;
 			boundingBox.x = frame.cols - 64;
 		}
+		try {
 			frameSegmented = frame(boundingBox);
-
+		} catch (...) {
+			std::cout << boundingBox.width << ", " << boundingBox.height << ", " << boundingBox.x << ", " << boundingBox.y <<std::endl;	
+		}
 	}
-
 	frameRect.first = frameSegmented;
 	frameRect.second = boundingBox;
 
@@ -340,6 +362,8 @@ int main(int argc, char **argv)
 		
 		std::pair<cv::Mat, cv::Rect>  segmentedFrameAndRect = preProcessFrame(frameResized, foreground);
 		cv::Mat segmentedFrame = segmentedFrameAndRect.first;
+		
+		//std::cout << segmentedFrameAndRect.second.height << " " << segmentedFrameAndRect.second.width << std::endl;
 
 		frameResized.copyTo(prevFrame);
 		if(segmentedFrame.empty()) continue;
@@ -348,7 +372,7 @@ int main(int argc, char **argv)
 
 //		saveFeatures(argv[1], argv[2], argv[3], intToString(count) , flowXY, gradients, frameResized, segmentedFrameAndRect.second);
 		count +=1;
-
+		
 		cv::Mat rectDrawed = drawRect(curretFrame, segmentedFrameAndRect.second);
 
 		cv::Mat gradX, gradY;
