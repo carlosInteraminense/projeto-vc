@@ -14,7 +14,7 @@
 #include <vector>
 #include <sstream>
 
-cv::Ptr<cv::Tracker> tracker = cv::Tracker::create( "MEDIANFLOW" );
+cv::Ptr<cv::Tracker> tracker = cv::Tracker::create( "TLD" );
 cv::Rect2d bbox;
 
 cv::Rect rectMax(std::vector<cv::Rect> rects)
@@ -101,13 +101,17 @@ std::pair<cv::Mat, cv::Rect> preProcessFrame(cv::Mat frame, cv::Mat foreground)
 		bbox.height = boundingBox.height;
 		
 		std::cout << "Detecting... " << bbox.width << "," << bbox.height << " " << bbox.x << "," << bbox.y <<std::endl;
+		cv::cvtColor( frame, frame, CV_GRAY2BGR );
 		tracker->cv::Tracker::init(frame, bbox);
+		cv::cvtColor( frame, frame, CV_BGR2GRAY );
 	}
 	else if (bbox.width > 0 && bbox.height > 0){
 		//boundingBox = processForeground(foreground);
 		
 		std::cout << "Tracking..." << bbox.width << "," << bbox.height << " " << bbox.x << "," << bbox.y <<std::endl;
+		cv::cvtColor( frame, frame, CV_GRAY2BGR );
 		tracker->cv::Tracker::update(frame, bbox);
+		cv::cvtColor( frame, frame, CV_BGR2GRAY );
 		boundingBox = bbox;
 		
 	} else {
